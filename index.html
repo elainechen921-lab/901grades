@@ -1,12 +1,17 @@
 <!DOCTYPE html>
-<html lang="zh-Hant"><head><meta charset="utf-8">
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>宜蘭縣文化國中901班學習紀錄小站</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{--paper:#f6f1e7;--card:#fffdf8;--ink:#2f3a34;--green:#2f5d50;--clay:#c8704a;--line:#e4dccb;--mute:#7a7f76;--good:#2f7d5b;--bad:#b5483a;--soft:#eef2ec}
 *{box-sizing:border-box}
+/* 關鍵修復：強制所有帶有 hidden 屬性的區塊徹底隱藏，不會被 #login 的 display:flex 覆蓋 */
+[hidden]{display:none !important}
 body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:var(--paper);line-height:1.6}
 .serif{font-family:"Noto Serif TC","Songti TC",serif}
 /* 登入 */
@@ -21,13 +26,15 @@ body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans
 label{display:block;font-weight:700;margin:16px 0 6px;font-size:16px}
 select,input{width:100%;height:58px;padding:0 16px;font:inherit;font-size:20px;border:1.5px solid var(--line);border-radius:14px;background:#fff;color:var(--ink)}
 select:focus,input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 4px rgba(47,93,80,.12)}
-button{font:inherit;cursor:pointer;border:0;border-radius:14px;background:var(--green);color:#fff;font-weight:700;height:60px;width:100%;font-size:20px;margin-top:24px;letter-spacing:.2em}
+button{font:inherit;cursor:pointer;border:0;border-radius:14px;background:var(--green);color:#fff;font-weight:700;height:60px;width:100%;font-size:20px;margin-top:24px;letter-spacing:.2em;transition:background .2s,opacity .2s}
 button:hover{background:#244b40}
+button:disabled{opacity:.65;cursor:wait}
 button.ghost{background:transparent;color:var(--green);border:1.5px solid var(--green);height:44px;font-size:15px;margin:0;width:auto;padding:0 18px;letter-spacing:0}
-.err{color:var(--bad);text-align:center;min-height:1.6em;margin-top:12px;font-size:16px}
+.err{color:var(--bad);text-align:center;min-height:1.6em;margin-top:12px;font-size:16px;font-weight:500}
+.err.loading{color:var(--green)}
 .foot{margin-top:22px;color:var(--mute);font-size:13px;text-align:center}
 /* 成績頁 */
-header.top{background:var(--green);color:#fff;padding:16px 18px}
+header.top{background:var(--green);color:#fff;padding:16px 18px;position:sticky;top:0;z-index:10}
 header.top div{max-width:900px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 header.top b{font-size:18px}
 header.top button.ghost{color:#fff;border-color:rgba(255,255,255,.6)}
@@ -56,60 +63,151 @@ li{margin:6px 0}
 .legend{text-align:center;font-size:14px;margin-top:6px}
 .legend i{display:inline-block;width:14px;height:4px;margin:0 6px 3px 14px;border-radius:2px}
 @media print{header.top button,.pick,.noprint{display:none}body{background:#fff}.card{box-shadow:none;break-inside:avoid}}
-</style></head><body>
+</style>
+</head>
+<body>
 <section id="login">
-  <div class="brand"><small>LEARNING RECORD</small><h1 class="serif">宜蘭縣文化國中<br>901班學習紀錄小站</h1><div class="rule"></div></div>
+  <div class="brand">
+    <small>LEARNING RECORD</small>
+    <h1 class="serif">宜蘭縣文化國中<br>901班學習紀錄小站</h1>
+    <div class="rule"></div>
+  </div>
   <div class="lcard">
-    <h2 class="serif">家長登入</h2><p>請選擇孩子的姓名，並輸入身分證後五碼</p>
+    <h2 class="serif">家長登入</h2>
+    <p>請選擇孩子的姓名，並輸入身分證後五碼</p>
     <label for="name">學生姓名</label>
     <select id="name"><option>載入學生名單中…</option></select>
     <label for="pin">身分證後五碼</label>
     <input id="pin" type="password" inputmode="numeric" maxlength="5" placeholder="• • • • •" onkeydown="if(event.key==='Enter')doLogin()">
-    <button onclick="doLogin()">登　入</button>
+    <button id="loginBtn" onclick="doLogin()">登　入</button>
     <div class="err" id="err"></div>
   </div>
   <div class="foot">成績資料僅供家長查詢，請勿轉傳他人</div>
 </section>
-<section id="app" hidden>
-  <header class="top"><div><b class="serif">901班學習紀錄小站</b><span><button class="ghost" onclick="window.print()">列印</button> <button class="ghost" onclick="location.reload()">登出</button></span></div></header>
+
+<section id="app" hidden style="display:none">
+  <header class="top">
+    <div>
+      <b class="serif">901班學習紀錄小站</b>
+      <span>
+        <button class="ghost" onclick="window.print()">列印</button>
+        <button class="ghost" onclick="doLogout()">登出</button>
+      </span>
+    </div>
+  </header>
   <main>
-    <div class="card"><h2 id="hello" class="serif"></h2>
-      <div class="pick"><div><label for="exam" style="margin-top:0">選擇考試</label><select id="exam" onchange="render(this.value)"></select></div></div></div>
+    <div class="card">
+      <h2 id="hello" class="serif"></h2>
+      <div class="pick">
+        <div>
+          <label for="exam" style="margin-top:0">選擇考試</label>
+          <select id="exam" onchange="render(this.value)"></select>
+        </div>
+      </div>
+    </div>
     <div id="out"></div>
   </main>
 </section>
+
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbyboEMEXTNXMR3anQSqQQTCVGvgXZ6Si7p9kX_glkXFsFdz8M71h-SoI-lBDwnkEP7FMA/exec';
 const $ = s => document.querySelector(s);
 const BINS = ['100','90–99','80–89','70–79','60–69','0–59'];
 let D;
-fetch(API + '?action=list').then(r => r.json()).then(d => {
-  $('#name').innerHTML = '<option value="">請選擇學生姓名</option>' + d.names.map(n => `<option>${n}</option>`).join('');
-}).catch(() => $('#err').textContent = '無法連線，請稍後再試');
+
+fetch(API + '?action=list')
+  .then(r => r.json())
+  .then(d => {
+    $('#name').innerHTML = '<option value="">請選擇學生姓名</option>' + d.names.map(n => `<option>${n}</option>`).join('');
+  })
+  .catch(() => {
+    $('#err').className = 'err';
+    $('#err').textContent = '無法連線，請稍後再試';
+  });
+
 function doLogin() {
-  const n = $('#name').value, p = $('#pin').value;
-  if (!n || p.length < 5) { $('#err').textContent = '請選擇姓名並輸入5碼'; return; }
-  $('#err').textContent = '查詢中…';
-  fetch(`${API}?action=query&name=${encodeURIComponent(n)}&pin=${encodeURIComponent(p)}`).then(r => r.json()).then(d => {
-    if (d.error) { $('#err').textContent = d.error; return; }
-    D = d; $('#login').hidden = true; $('#app').hidden = false; scrollTo(0, 0);
-    $('#hello').textContent = `${d.name} 同學的學習紀錄`;
-    $('#exam').innerHTML = d.exams.map((e, i) => `<option value="${i}">${e.name}</option>`).join('');
-    render(0);
-  }).catch(() => $('#err').textContent = '連線失敗，請稍後再試');
+  const n = $('#name').value, p = $('#pin').value.trim();
+  const btn = $('#loginBtn');
+  if (!n || p.length < 5) {
+    $('#err').className = 'err';
+    $('#err').textContent = '請選擇姓名並輸入5碼';
+    return;
+  }
+  $('#err').className = 'err loading';
+  $('#err').textContent = '查詢中，請稍候…';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '查詢中…';
+  }
+
+  fetch(`${API}?action=query&name=${encodeURIComponent(n)}&pin=${encodeURIComponent(p)}`)
+    .then(r => r.json())
+    .then(d => {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '登　入';
+      }
+      if (d.error) {
+        $('#err').className = 'err';
+        $('#err').textContent = d.error;
+        return;
+      }
+      D = d;
+      // 徹底隱藏登入畫面、清除「查詢中…」並立即切換顯示成績頁
+      $('#err').textContent = '';
+      $('#login').hidden = true;
+      $('#login').style.display = 'none';
+      $('#app').hidden = false;
+      $('#app').style.display = 'block';
+
+      $('#hello').textContent = `${d.name} 同學的學習紀錄`;
+      $('#exam').innerHTML = d.exams.map((e, i) => `<option value="${i}">${e.name}</option>`).join('');
+      render(0);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    })
+    .catch(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '登　入';
+      }
+      $('#err').className = 'err';
+      $('#err').textContent = '連線失敗，請稍後再試';
+    });
 }
+
+function doLogout() {
+  D = null;
+  $('#pin').value = '';
+  $('#err').textContent = '';
+  $('#out').innerHTML = '';
+  $('#app').hidden = true;
+  $('#app').style.display = 'none';
+  $('#login').hidden = false;
+  $('#login').style.display = 'flex';
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+}
+
 const sg = x => (x > 0 ? '+' : '') + x.toFixed(1);
 const cl = x => x > 0 ? 'up' : x < 0 ? 'down' : '';
 const sc = s => s >= 90 ? 'g' : s < 60 ? 'b' : '';
+
 function render(i) {
-  i = +i; const e = D.exams[i], p = D.exams[i + 1], S = e.subjects;
-  const stats = [['總分', e.total], ['平均', e.avg], ['班級排名', `${e.rank}<small style="font-size:16px;color:var(--mute)"> / ${e.count}</small>`], ['班級平均', e.cAvg]]
-    .map(x => `<div class="stat"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');
+  i = +i;
+  const e = D.exams[i], p = D.exams[i + 1], S = e.subjects;
+  const stats = [
+    ['總分', e.total],
+    ['平均', e.avg],
+    ['班級排名', `${e.rank}<small style="font-size:16px;color:var(--mute)"> / ${e.count}</small>`],
+    ['班級平均', e.cAvg]
+  ].map(x => `<div class="stat"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');
+
   const table = `<div class="wrap"><table><tr><th>科目</th><th>我的分數</th><th>班平均</th><th>最高</th><th>最低</th><th>與平均差</th><th>班排名</th></tr>` +
     S.map(x => `<tr><td>${x.n}</td><td class="me ${sc(x.s)}">${x.s}</td><td>${x.avg}</td><td>${x.max}</td><td>${x.min}</td><td class="${cl(x.s - x.avg)}">${sg(x.s - x.avg)}</td><td>${x.rank} / ${x.cnt}</td></tr>`).join('') + '</table></div>';
+
   const dist = `<div class="wrap"><table><tr><th>科目</th>${BINS.map(b => `<th>${b} 分</th>`).join('')}</tr>` +
     S.map(x => `<tr><td>${x.n}</td>${[...x.bins].reverse().map((c, k) => `<td ${k === 5 - x.bin ? 'class="me"' : ''}>${c}${k === 5 - x.bin ? ' ◀' : ''}</td>`).join('')}</tr>`).join('') +
     `</table></div><p class="note">數字為全班在該分數區間的人數，◀ 為孩子所在的區間。</p>`;
+
   $('#out').innerHTML =
     `<div class="card lead">${summary(e, p)}</div>` +
     `<div class="card"><div class="stats">${stats}</div></div>` +
@@ -120,6 +218,7 @@ function render(i) {
     `<div class="card"><h2 class="serif">歷次平均趨勢</h2>${trend()}</div>` +
     (e.comment ? `<div class="card"><h2 class="serif">導師的話</h2><p>${e.comment}</p></div>` : '');
 }
+
 function summary(e, p) {
   const S = e.subjects.map(x => ({...x, d: x.s - x.avg})).sort((a, b) => b.d - a.d), top = S[0], low = S[S.length - 1];
   let t = `本次班級排名第 <b>${e.rank}</b> 名（共 ${e.count} 人），平均 <b>${e.avg}</b> 分，${e.avg >= e.cAvg ? '高於' : '低於'}班級平均 ${e.cAvg} 分。`;
@@ -129,16 +228,28 @@ function summary(e, p) {
   if (p) t += `與上一次相比，平均${e.avg >= p.avg ? '進步' : '退步'} ${Math.abs(e.avg - p.avg).toFixed(1)} 分。`;
   return t;
 }
+
 function radar(S) {
-  const n = S.length; if (n < 3) return '<p class="note">科目數不足，無法繪製雷達圖。</p>';
-  const c = 170, R = 115, pt = (k, v) => { const a = -Math.PI / 2 + 2 * Math.PI * k / n; return [c + R * v / 100 * Math.cos(a), c + R * v / 100 * Math.sin(a)]; };
+  const n = S.length;
+  if (n < 3) return '<p class="note">科目數不足，無法繪製雷達圖。</p>';
+  const c = 170, R = 115, pt = (k, v) => {
+    const a = -Math.PI / 2 + 2 * Math.PI * k / n;
+    return [c + R * v / 100 * Math.cos(a), c + R * v / 100 * Math.sin(a)];
+  };
   const poly = (f, st) => `<polygon points="${S.map((x, k) => pt(k, f(x)).join(',')).join(' ')}" ${st}/>`;
   const ring = [25, 50, 75, 100].map(v => poly(() => v, 'fill="none" stroke="#e4dccb"')).join('');
-  const axes = S.map((_, k) => { const [x, y] = pt(k, 100); return `<line x1="${c}" y1="${c}" x2="${x}" y2="${y}" stroke="#e4dccb"/>`; }).join('');
-  const lab = S.map((x, k) => { const [px, py] = pt(k, 119); return `<text x="${px}" y="${py + 5}" text-anchor="middle" font-size="15" fill="#2f3a34">${x.n}</text>`; }).join('');
+  const axes = S.map((_, k) => {
+    const [x, y] = pt(k, 100);
+    return `<line x1="${c}" y1="${c}" x2="${x}" y2="${y}" stroke="#e4dccb"/>`;
+  }).join('');
+  const lab = S.map((x, k) => {
+    const [px, py] = pt(k, 119);
+    return `<text x="${px}" y="${py + 5}" text-anchor="middle" font-size="15" fill="#2f3a34">${x.n}</text>`;
+  }).join('');
   return `<svg viewBox="0 0 340 340" style="max-width:400px;width:100%;display:block;margin:auto">${ring}${axes}${poly(x => x.avg, 'fill="rgba(200,112,74,.10)" stroke="#c8704a" stroke-width="2" stroke-dasharray="5 4"')}${poly(x => x.s, 'fill="rgba(47,93,80,.25)" stroke="#2f5d50" stroke-width="2.5"')}${lab}</svg>
   <div class="legend"><i style="background:#2f5d50"></i>孩子分數<i style="background:#c8704a"></i>班級平均（外圈為 100 分）</div>`;
 }
+
 function analysis(e, p) {
   const S = e.subjects.map(x => ({...x, d: x.s - x.avg, beat: Math.round((x.cnt - x.rank) / x.cnt * 100)}));
   const by = [...S].sort((a, b) => b.d - a.d), st = by.slice(0, 2).filter(x => x.d > 0), wk = by.slice(-2).reverse().filter(x => x.d < 0);
@@ -153,7 +264,8 @@ function analysis(e, p) {
     const rel = (e.avg - e.cAvg) - (p.avg - p.cAvg);
     h += `<p><b>與上一次（${p.name}）比較：</b>平均 <span class="${cl(e.avg - p.avg)}">${sg(e.avg - p.avg)}</span> 分，相對班級${rel > 1 ? '<span class="up">進步</span>' : rel < -1 ? '<span class="down">退步</span>' : '大致持平'}。</p><ul>`;
     S.forEach(x => {
-      const o = p.subjects.find(y => y.n === x.n); if (!o) return;
+      const o = p.subjects.find(y => y.n === x.n);
+      if (!o) return;
       const ch = x.d - (o.s - o.avg);
       if (Math.abs(ch) >= 3) h += `<li>${x.n}：相對班平均<span class="${ch > 0 ? 'up' : 'down'}">${ch > 0 ? '進步' : '退步'} ${Math.abs(ch).toFixed(1)} 分</span></li>`;
     });
@@ -161,6 +273,7 @@ function analysis(e, p) {
   }
   return h;
 }
+
 function trend() {
   const L = [...D.exams].reverse(), W = 640, H = 230, m = 40, n = L.length;
   if (n < 2) return '<p class="note">累積兩次以上考試後，就能看到趨勢圖。</p>';
@@ -172,4 +285,6 @@ function trend() {
   return `<div class="wrap"><svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.max(460, n * 80)}px;width:100%"><line x1="${m}" x2="${W - m}" y1="${H - 45}" y2="${H - 45}" stroke="#e4dccb"/>${line('cAvg', '#c8704a', 1)}${line('avg', '#2f5d50')}${lab}</svg></div>
   <div class="legend"><i style="background:#2f5d50"></i>孩子平均<i style="background:#c8704a"></i>班級平均</div>`;
 }
-</script></body></html>
+</script>
+</body>
+</html>
