@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>宜蘭縣文化國中901班學習紀錄小站</title>
+<style>
+:root{--ink:#5b4b5e;--pink:#ffc8dd;--blue:#bde0fe;--green:#cdeac0;--yellow:#fff1a8;--purple:#d9c7f5;--orange:#ffd6a5}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:linear-gradient(160deg,#fff4e6,#f3e8ff 50%,#e3f6ff);min-height:100vh}
+header{text-align:center;padding:22px 12px 8px}
+h1{margin:6px 0;font-size:clamp(20px,5vw,30px)}
+.row{display:flex;justify-content:center;gap:4px}
+main{max-width:860px;margin:auto;padding:12px}
+.card{background:#fff;border-radius:24px;padding:18px;margin:14px 0;box-shadow:0 6px 0 rgba(91,75,94,.08)}
+.card h2{margin:0 0 10px;font-size:18px}
+select,input,button{font:inherit;padding:11px 14px;border-radius:16px;border:2px solid var(--purple);width:100%;margin:6px 0;color:var(--ink);background:#fff}
+button{background:#ff9ebb;border-color:#ff9ebb;color:#fff;font-weight:700;cursor:pointer}
+.login{max-width:380px;margin:auto}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.stat{border-radius:20px;padding:14px;text-align:center}
+.stat b{display:block;font-size:26px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;text-align:center;font-size:15px}
+th{background:var(--blue)}th,td{padding:8px;border-bottom:2px dashed #f0e6f6;white-space:nowrap}
+td.me{background:var(--yellow);font-weight:700}
+.up{color:#2e9e5b}.down{color:#e0556f}
+.tag{display:inline-block;border-radius:99px;padding:3px 12px;margin:3px;font-size:14px}
+li{margin:6px 0;line-height:1.6}
+.err{color:#e0556f;text-align:center;min-height:1.4em}
+</style></head><body>
+<header><div class="row" id="piks"></div><h1>🌱 宜蘭縣文化國中901班學習紀錄小站 🌸</h1></header>
+<main>
+<section id="login" class="card login">
+  <h2>家長登入</h2>
+  <select id="name"><option>載入學生名單中…</option></select>
+  <input id="pin" type="password" inputmode="numeric" maxlength="5" placeholder="請輸入身分證後五碼">
+  <button onclick="doLogin()">登入</button>
+  <div class="err" id="err"></div>
+</section>
+<section id="app" hidden>
+  <div class="card"><h2 id="hello"></h2>
+    <select id="exam" onchange="render(this.value)"></select>
+    <button onclick="location.reload()" style="background:#b8a1e3;border-color:#b8a1e3">登出</button></div>
+  <div id="out"></div>
+</section>
+</main>
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbyboEMEXTNXMR3anQSqQQTCVGvgXZ6Si7p9kX_glkXFsFdz8M71h-SoI-lBDwnkEP7FMA/exec';
+const $ = s => document.querySelector(s), COL = ['#ff8fab','#8ecae6','#ffd166','#b8a1e3','#95d5b2'];
+const BG = ['var(--pink)','var(--blue)','var(--yellow)','var(--green)'];
+const BINS = ['0–59','60–69','70–79','80–89','90–99','100'];
+let D;
+function pik(c, s = 44) {
+  return `<svg width="${s}" height="${s}" viewBox="0 0 48 48"><path d="M24 13c0-6 3-9 9-9-1 6-4 9-9 9z" fill="#7bc96f"/><path d="M24 13v6" stroke="#6ab04c" stroke-width="3"/><ellipse cx="24" cy="32" rx="13" ry="13" fill="${c}"/><circle cx="19" cy="30" r="3" fill="#333"/><circle cx="29" cy="30" r="3" fill="#333"/><circle cx="19.8" cy="29" r="1" fill="#fff"/><circle cx="29.8" cy="29" r="1" fill="#fff"/></svg>`;
+}
+$('#piks').innerHTML = COL.map(c => pik(c)).join('');
+fetch(API + '?action=list').then(r => r.json()).then(d => {
+  $('#name').innerHTML = '<option value="">請選擇學生姓名</option>' + d.names.map(n => `<option>${n}</option>`).join('');
+}).catch(() => $('#err').textContent = '無法連線，請稍後再試');
+function doLogin() {
+  const n = $('#name').value, p = $('#pin').value;
+  if (!n || p.length < 5) { $('#err').textContent = '請選擇姓名並輸入5碼'; return; }
+  $('#err').textContent = '查詢中…';
+  fetch(`${API}?action=query&name=${encodeURIComponent(n)}&pin=${encodeURIComponent(p)}`).then(r => r.json()).then(d => {
+    if (d.error) { $('#err').textContent = d.error; return; }
+    D = d; $('#login').hidden = true; $('#app').hidden = false;
+    $('#hello').textContent = `${d.name} 同學的學習紀錄`;
+    $('#exam').innerHTML = d.exams.map((e, i) => `<option value="${i}">${e.name}</option>`).join('');
+    render(0);
+  }).catch(() => $('#err').textContent = '連線失敗，請稍後再試');
+}
+const sg = x => (x > 0 ? '+' : '') + x.toFixed(1);
+const cl = x => x > 0 ? 'up' : x < 0 ? 'down' : '';
+function render(i) {
+  i = +i; const e = D.exams[i], p = D.exams[i + 1], S = e.subjects;
+  const stats = [['總分', e.total], ['平均', e.avg], ['班級排名', `${e.rank}/${e.count}`], ['班級平均', e.cAvg]]
+    .map((x, k) => `<div class="stat" style="background:${BG[k]}">${x[0]}<b>${x[1]}</b></div>`).join('');
+  const table = `<div class="wrap"><table><tr><th>科目</th><th>我的分數</th><th>班平均</th><th>最高</th><th>最低</th><th>與平均差</th><th>班排名</th></tr>` +
+    S.map(x => `<tr><td>${x.n}</td><td class="me">${x.s}</td><td>${x.avg}</td><td>${x.max}</td><td>${x.min}</td><td class="${cl(x.s - x.avg)}">${sg(x.s - x.avg)}</td><td>${x.rank}/${x.cnt}</td></tr>`).join('') + '</table></div>';
+  const dist = `<div class="wrap"><table><tr><th>科目</th>${BINS.map(b => `<th>${b}分</th>`).join('')}</tr>` +
+    S.map(x => `<tr><td>${x.n}</td>${x.bins.map((c, k) => `<td ${k === x.bin ? 'class="me"' : ''}>${c}${k === x.bin ? ' 🌱' : ''}</td>`).join('')}</tr>`).join('') +
+    `</table></div><small>數字為全班在該分數區間的人數，🌱為孩子所在位置。</small>`;
+  $('#out').innerHTML =
+    `<div class="card"><div class="stats">${stats}</div></div>` +
+    `<div class="card"><h2>📋 各科成績</h2>${table}</div>` +
+    `<div class="card"><h2>📊 各科組距人數</h2>${dist}</div>` +
+    `<div class="card"><h2>🔍 學習狀況分析</h2>${analysis(e, p)}</div>` +
+    `<div class="card"><h2>📈 歷次平均趨勢</h2>${trend(i)}</div>` +
+    (e.comment ? `<div class="card" style="background:var(--yellow)"><h2>💌 導師的話</h2>${e.comment}</div>` : '');
+}
+function analysis(e, p) {
+  const S = e.subjects.map(x => ({...x, d: x.s - x.avg, beat: Math.round((x.cnt - x.rank) / x.cnt * 100)}));
+  const by = [...S].sort((a, b) => b.d - a.d);
+  const st = by.slice(0, 2).filter(x => x.d > 0), wk = by.slice(-2).reverse().filter(x => x.d < 0);
+  const tag = (x, c) => `<span class="tag" style="background:${c}">${x.n}（${sg(x.d)}，贏過約${x.beat}%同學）</span>`;
+  let h = `<p>💪 <b>優勢科目：</b>${st.length ? st.map(x => tag(x, 'var(--green)')).join('') : '本次沒有高於班平均的科目，下次一起加油！'}</p>`;
+  h += `<p>🌧️ <b>待加強科目：</b>${wk.length ? wk.map(x => tag(x, 'var(--pink)')).join('') : '各科都不低於班平均，很棒！'}</p>`;
+  const fail = S.filter(x => x.s < 60);
+  if (fail.length) h += `<p>⚠️ <b>未達60分：</b>${fail.map(x => x.n).join('、')}，建議優先安排補強與請教老師。</p>`;
+  const gap = Math.max(...S.map(x => x.s)) - Math.min(...S.map(x => x.s));
+  h += `<p>⚖️ 各科最高與最低相差 ${gap} 分，${gap >= 30 ? '科目之間落差較大，可把時間多分配給弱科。' : '各科發展較均衡。'}</p>`;
+  if (p) {
+    const rel = (e.avg - e.cAvg) - (p.avg - p.cAvg);
+    h += `<p>🔄 <b>與上一次（${p.name}）比較：</b>平均 <span class="${cl(e.avg - p.avg)}">${sg(e.avg - p.avg)}</span> 分，相對班級${rel > 1 ? '<span class="up">進步</span>' : rel < -1 ? '<span class="down">退步</span>' : '大致持平'}。</p><ul>`;
+    S.forEach(x => {
+      const o = p.subjects.find(y => y.n === x.n); if (!o) return;
+      const ch = x.d - (o.s - o.avg);
+      if (Math.abs(ch) >= 3) h += `<li>${x.n}：相對班平均${ch > 0 ? '<span class="up">進步' : '<span class="down">退步'} ${Math.abs(ch).toFixed(1)} 分</span></li>`;
+    });
+    h += '</ul>';
+  }
+  return h;
+}
+function trend(cur) {
+  const L = [...D.exams].reverse(), W = 640, H = 220, m = 36, n = L.length;
+  if (n < 2) return '<p>累積兩次以上考試後，就能看到趨勢圖囉！</p>';
+  const all = L.flatMap(e => [e.avg, e.cAvg]), lo = Math.max(0, Math.floor(Math.min(...all) / 10) * 10 - 10), hi = Math.min(100, Math.ceil(Math.max(...all) / 10) * 10 + 5);
+  const X = k => m + k * (W - 2 * m) / (n - 1), Y = v => H - 40 - (v - lo) / (hi - lo) * (H - 70);
+  const line = (key, c) => `<polyline fill="none" stroke="${c}" stroke-width="3" points="${L.map((e, k) => X(k) + ',' + Y(e[key])).join(' ')}"/>` +
+    L.map((e, k) => `<circle cx="${X(k)}" cy="${Y(e[key])}" r="4.5" fill="${c}"/>${key === 'avg' ? `<text x="${X(k)}" y="${Y(e[key]) - 9}" font-size="12" text-anchor="middle" fill="#5b4b5e">${e.avg}</text>` : ''}`).join('');
+  const lab = L.map((e, k) => `<text x="${X(k)}" y="${H - 8}" font-size="11" text-anchor="middle" fill="#5b4b5e">${e.name.replace('學年度', '').replace(/\s+/g, '').replace('段考', '').slice(0, 9)}</text>`).join('');
+  return `<div class="wrap"><svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.max(420, n * 70)}px;width:100%">${line('cAvg', '#8ecae6')}${line('avg', '#ff8fab')}${lab}</svg></div>
+  <span class="tag" style="background:var(--pink)">● 孩子平均</span><span class="tag" style="background:var(--blue)">● 班級平均</span>`;
+}
+</script></body></html>
