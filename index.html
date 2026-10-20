@@ -47,7 +47,7 @@ li{margin:6px 0;line-height:1.6}
 const API = 'https://script.google.com/macros/s/AKfycbyboEMEXTNXMR3anQSqQQTCVGvgXZ6Si7p9kX_glkXFsFdz8M71h-SoI-lBDwnkEP7FMA/exec';
 const $ = s => document.querySelector(s), COL = ['#ff8fab','#8ecae6','#ffd166','#b8a1e3','#95d5b2'];
 const BG = ['var(--pink)','var(--blue)','var(--yellow)','var(--green)'];
-const BINS = ['0–59','60–69','70–79','80–89','90–99','100'];
+const BINS = ['100','90–99','80–89','70–79','60–69','0–59'];
 let D;
 function pik(c, s = 44) {
   return `<svg width="${s}" height="${s}" viewBox="0 0 48 48"><path d="M24 13c0-6 3-9 9-9-1 6-4 9-9 9z" fill="#7bc96f"/><path d="M24 13v6" stroke="#6ab04c" stroke-width="3"/><ellipse cx="24" cy="32" rx="13" ry="13" fill="${c}"/><circle cx="19" cy="30" r="3" fill="#333"/><circle cx="29" cy="30" r="3" fill="#333"/><circle cx="19.8" cy="29" r="1" fill="#fff"/><circle cx="29.8" cy="29" r="1" fill="#fff"/></svg>`;
@@ -77,7 +77,7 @@ function render(i) {
   const table = `<div class="wrap"><table><tr><th>科目</th><th>我的分數</th><th>班平均</th><th>最高</th><th>最低</th><th>與平均差</th><th>班排名</th></tr>` +
     S.map(x => `<tr><td>${x.n}</td><td class="me">${x.s}</td><td>${x.avg}</td><td>${x.max}</td><td>${x.min}</td><td class="${cl(x.s - x.avg)}">${sg(x.s - x.avg)}</td><td>${x.rank}/${x.cnt}</td></tr>`).join('') + '</table></div>';
   const dist = `<div class="wrap"><table><tr><th>科目</th>${BINS.map(b => `<th>${b}分</th>`).join('')}</tr>` +
-    S.map(x => `<tr><td>${x.n}</td>${x.bins.map((c, k) => `<td ${k === x.bin ? 'class="me"' : ''}>${c}${k === x.bin ? ' 🌱' : ''}</td>`).join('')}</tr>`).join('') +
+    S.map(x => `<tr><td>${x.n}</td>${[...x.bins].reverse().map((c, k) => `<td ${k === 5 - x.bin ? 'class="me"' : ''}>${c}${k === 5 - x.bin ? ' 🌱' : ''}</td>`).join('')}</tr>`).join('') +
     `</table></div><small>數字為全班在該分數區間的人數，🌱為孩子所在位置。</small>`;
   $('#out').innerHTML =
     `<div class="card"><div class="stats">${stats}</div></div>` +
