@@ -59,7 +59,7 @@ li{margin:6px 0}
 .bar{display:grid;grid-template-columns:56px 1fr 40px;align-items:center;gap:10px;font-size:15px}
 .bar i{display:block;height:20px;border-radius:5px;background:#d6ded8}
 .bar.me i{background:var(--clay)}.bar.me b{color:var(--clay)}
-.stat b .grade{font-size:32px;color:var(--clay);font-family:inherit}
+.stat em{font-style:normal;font-weight:700;color:var(--clay)}
 @media print{header.top button,.pick,.noprint{display:none}body{background:#fff}.card{box-shadow:none;break-inside:avoid}}
 </style></head><body>
 <section id="login">
@@ -129,31 +129,45 @@ function render(i) {
     `<div class="card"><h2 class="serif">歷次平均趨勢</h2>${trend(D.exams.filter(x => !x.mock), 'avg', 'cAvg')}</div>` +
     (e.comment ? `<div class="card"><h2 class="serif">導師的話</h2><p>${e.comment}</p></div>` : '');
 }
-const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
 function renderMock(e, p) {
+  const S = e.subjects, got = S.filter(x => x.s !== null);
   if (e.absent) { $('#out').innerHTML = `<div class="card lead">本次「${e.name}」缺考，沒有成績。</div>`; return; }
-  const P = e.parts, stats = [['加權分數', e.w], ['等級', `<span class="grade">${e.grade}</span>`],
-    ['班級排名', `${e.rank}<small style="font-size:16px;color:var(--mute)"> / ${e.count}</small>`], ['班級平均', e.wAvg]]
-    .map(x => `<div class="stat"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');
-  const table = `<div class="wrap"><table><tr><th>項目</th><th>答對題數</th><th>答對率</th><th>班平均題數</th><th>班平均答對率</th><th>最高</th><th>最低</th><th>班排名</th></tr>` +
-    P.map(x => `<tr><td>${x.n}</td><td class="me">${x.s} / ${x.full}</td><td>${pct(x.s, x.full)}%</td><td>${x.avg}</td><td>${pct(x.avg, x.full)}%</td><td>${x.max}</td><td>${x.min}</td><td>${x.rank} / ${x.cnt}</td></tr>`).join('') + '</table></div>' +
-    `<p class="note">加權分數＝閱讀答對題數 ÷ 43 × 80 ＋ 聽力答對題數 ÷ 21 × 20。</p>`;
-  const mx = Math.max(...e.grades.map(x => x.n), 1);
-  const bars = `<div class="bars">${e.grades.map(x => `<div class="bar ${x.g === e.grade ? 'me' : ''}"><b>${x.g}</b><i style="width:${Math.max(x.n / mx * 100, x.n ? 3 : 0)}%"></i><span>${x.n} 人</span></div>`).join('')}</div><p class="note">橘色為孩子所在的等級；全班共 ${e.count} 人參加。</p>`;
-  const d = P.map(x => ({...x, r: pct(x.s, x.full), ar: pct(x.avg, x.full)})).map(x => ({...x, diff: x.r - x.ar})).sort((a, b) => b.diff - a.diff);
-  let a = `<p><b>相對優勢：</b><span class="tag ${d[0].diff >= 0 ? 'tg' : 'tb'}">${d[0].n}　答對率 ${d[0].r}%（${sg(d[0].diff)} 個百分點對比班平均）</span></p>`;
-  a += d[1].diff >= 0 ? `<p><b>整體表現：</b>聽力與閱讀都高於班平均，其中${d[1].n}相對較弱（${sg(d[1].diff)} 個百分點），仍有進步空間。</p>`
-    : `<p><b>相對需加強：</b><span class="tag tb">${d[1].n}　答對率 ${d[1].r}%（${sg(d[1].diff)} 個百分點對比班平均）</span></p>`;
-  const gap = Math.abs(d[0].r - d[1].r);
-  a += `<p><b>聽讀均衡度：</b>聽力與閱讀答對率相差 ${gap.toFixed(1)} 個百分點，${gap >= 20 ? `${d[1].n}明顯較弱，建議安排專門練習。` : '兩項能力發展相對均衡。'}</p>`;
-  if (p && !p.absent) a += `<p><b>與上一次模擬考比較：</b>加權分數 <span class="${cl(e.w - p.w)}">${sg(e.w - p.w)}</span> 分，等級由 ${p.grade} → ${e.grade}。</p>`;
-  const sum = `本次模擬考加權分數 <b>${e.w}</b> 分，等級 <b>${e.grade}</b>，班級排名第 <b>${e.rank}</b> 名（共 ${e.count} 人），${e.w >= e.wAvg ? '高於' : '低於'}班平均 ${e.wAvg} 分。聽力答對率 ${pct(P[0].s, P[0].full)}%，閱讀答對率 ${pct(P[1].s, P[1].full)}%。`;
+  const D2 = got.map(x => ({...x, d: x.s - x.avg, beat: Math.round((x.cnt - x.rank) / x.cnt * 100)}));
+  const stats = S.map(x => x.s === null ? `<div class="stat"><span>${x.n}</span><b style="font-size:22px">缺考</b></div>`
+    : `<div class="stat"><span>${x.n}</span><b>${x.s}</b><span>等級 <em>${x.grade}</em>　班排名 ${x.rank} / ${x.cnt}</span></div>`).join('');
+  const table = `<div class="wrap"><table><tr><th>科目</th><th>加權分數</th><th>等級</th><th>班平均</th><th>與平均差</th><th>最高</th><th>最低</th><th>班排名</th></tr>` +
+    S.map(x => x.s === null ? `<tr><td>${x.n}</td><td colspan="7">缺考</td></tr>` :
+      `<tr><td>${x.n}</td><td class="me">${x.s}</td><td class="me">${x.grade}</td><td>${x.avg}</td><td class="${cl(x.s - x.avg)}">${sg(x.s - x.avg)}</td><td>${x.max}</td><td>${x.min}</td><td>${x.rank} / ${x.cnt}</td></tr>`).join('') + '</table></div>';
+  const bars = `<div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:22px">` + S.map(x => {
+    const mx = Math.max(...x.grades.map(g => g.n), 1);
+    return `<div><b>${x.n}</b><div class="bars" style="margin-top:8px">${x.grades.map(g => `<div class="bar ${g.g === x.grade ? 'me' : ''}"><b>${g.g}</b><i style="width:${Math.max(g.n / mx * 100, g.n ? 4 : 0)}%"></i><span>${g.n} 人</span></div>`).join('')}</div></div>`;
+  }).join('') + `</div><p class="note">橘色為孩子所在的等級。</p>`;
+  let a = '';
+  if (D2.length === 1) {
+    const x = D2[0];
+    a = `<p><b>${x.n}</b>加權分數 ${x.s} 分，等級 <b>${x.grade}</b>，${x.d >= 0 ? '高於' : '低於'}班平均 ${x.avg} 分（${sg(x.d)}），贏過約 ${x.beat}% 的同學。</p><p class="note">目前只有${x.n}一科成績，其他科目登錄後會自動出現更完整的分析。</p>`;
+  } else {
+    const by = [...D2].sort((u, v) => v.d - u.d), st = by.slice(0, 2).filter(x => x.d > 0), wk = by.slice(-2).reverse().filter(x => x.d < 0);
+    const tag = (x, c) => `<span class="tag ${c}">${x.n}　${x.grade}　${sg(x.d)}（贏過約 ${x.beat}% 同學）</span>`;
+    a = `<p><b>優勢科目</b><br>${st.length ? st.map(x => tag(x, 'tg')).join('') : '本次沒有高於班平均的科目。'}</p><p><b>待加強科目</b><br>${wk.length ? wk.map(x => tag(x, 'tb')).join('') : '各科都不低於班平均，表現穩定。'}</p>`;
+  }
+  if (p && !p.absent) {
+    const li = p.subjects.filter(o => o.s !== null).map(o => { const x = got.find(y => y.n === o.n); return x ? `<li>${x.n}：${sg(x.s - o.s)} 分，等級 ${o.grade} → ${x.grade}</li>` : ''; }).join('');
+    if (li) a += `<p><b>與上一次模擬考（${p.name}）比較：</b></p><ul>${li}</ul>`;
+  }
+  const sum = got.map(x => `${x.n} <b>${x.s}</b> 分（等級 <b>${x.grade}</b>，班排名第 ${x.rank} 名）`).join('；');
+  const hist = D.exams.filter(x => x.mock && !x.absent).reverse();
+  const names = [...new Set(hist.flatMap(x => x.subjects.map(y => y.n)))];
+  const histT = hist.length < 2 ? '<p class="note">累積兩次以上模擬考後，就能看到歷次比較。</p>' :
+    `<div class="wrap"><table><tr><th>科目</th>${hist.map(x => `<th>${x.name.replace('學年度', '').replace(/\s+/g, '')}</th>`).join('')}</tr>` +
+    names.map(n => `<tr><td>${n}</td>${hist.map(x => { const y = x.subjects.find(z => z.n === n); return `<td>${y && y.s !== null ? `${y.s}（${y.grade}）` : '—'}</td>`; }).join('')}</tr>`).join('') + '</table></div>';
   $('#out').innerHTML =
-    `<div class="card lead">${sum}</div><div class="card"><div class="stats">${stats}</div></div>` +
-    `<div class="card"><h2 class="serif">聽力與閱讀表現</h2>${table}</div>` +
+    `<div class="card lead">${e.name}：${sum}。</div><div class="card"><div class="stats">${stats}</div></div>` +
+    `<div class="card"><h2 class="serif">各科成績</h2>${table}</div>` +
+    (got.length >= 3 ? `<div class="card"><h2 class="serif">各科表現雷達圖</h2>${radar(got)}</div>` : '') +
     `<div class="card"><h2 class="serif">全班等級人數</h2>${bars}</div>` +
     `<div class="card"><h2 class="serif">學習狀況分析</h2>${a}</div>` +
-    `<div class="card"><h2 class="serif">歷次模擬考趨勢</h2>${trend(D.exams.filter(x => x.mock && !x.absent), 'w', 'wAvg')}</div>` +
+    `<div class="card"><h2 class="serif">歷次模擬考比較</h2>${histT}</div>` +
     (e.comment ? `<div class="card"><h2 class="serif">導師的話</h2><p>${e.comment}</p></div>` : '');
 }
 function summary(e, p) {
