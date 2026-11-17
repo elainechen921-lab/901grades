@@ -7,6 +7,7 @@
 <style>
 :root{--paper:#f6f1e7;--card:#fffdf8;--ink:#2f3a34;--green:#2f5d50;--clay:#c8704a;--line:#e4dccb;--mute:#7a7f76;--good:#2f7d5b;--bad:#b5483a;--soft:#eef2ec}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);background:var(--paper);line-height:1.6}
 .serif{font-family:"Noto Serif TC","Songti TC",serif}
 /* 登入 */
@@ -23,6 +24,7 @@ select,input{width:100%;height:58px;padding:0 16px;font:inherit;font-size:20px;b
 select:focus,input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 4px rgba(47,93,80,.12)}
 button{font:inherit;cursor:pointer;border:0;border-radius:14px;background:var(--green);color:#fff;font-weight:700;height:60px;width:100%;font-size:20px;margin-top:24px;letter-spacing:.2em}
 button:hover{background:#244b40}
+button:disabled{opacity:.65;cursor:wait}
 button.ghost{background:transparent;color:var(--green);border:1.5px solid var(--green);height:44px;font-size:15px;margin:0;width:auto;padding:0 18px;letter-spacing:0}
 .err{color:var(--bad);text-align:center;min-height:1.6em;margin-top:12px;font-size:16px}
 .foot{margin-top:22px;color:var(--mute);font-size:13px;text-align:center}
@@ -70,7 +72,7 @@ li{margin:6px 0}
     <select id="name"><option>載入學生名單中…</option></select>
     <label for="pin">身分證後五碼</label>
     <input id="pin" type="password" inputmode="numeric" maxlength="5" placeholder="• • • • •" onkeydown="if(event.key==='Enter')doLogin()">
-    <button onclick="doLogin()">登　入</button>
+    <button id="go" onclick="doLogin()">登　入</button>
     <div class="err" id="err"></div>
   </div>
   <div class="foot">成績資料僅供家長查詢，請勿轉傳他人</div>
@@ -94,16 +96,18 @@ fetch(API + '?action=list').then(r => r.json()).then(d => {
 function doLogin() {
   const n = $('#name').value, p = $('#pin').value;
   if (!n || p.length < 5) { $('#err').textContent = '請選擇姓名並輸入5碼'; return; }
-  $('#err').textContent = '查詢中…';
+  $('#err').textContent = '查詢中，請稍候…（第一次約需數秒）';
+  $('#go').disabled = true; $('#go').textContent = '查詢中…';
+  const done = () => { $('#go').disabled = false; $('#go').textContent = '登　入'; };
   fetch(`${API}?action=query&name=${encodeURIComponent(n)}&pin=${encodeURIComponent(p)}`).then(r => r.json()).then(d => {
-    if (d.error) { $('#err').textContent = d.error; return; }
+    if (d.error) { done(); $('#err').textContent = d.error; return; }
     D = d; $('#login').hidden = true; $('#app').hidden = false; scrollTo(0, 0);
     $('#hello').textContent = `${d.name} 同學的學習紀錄`;
     const grp = (t, f) => { const o = d.exams.map((e, i) => f(e) ? `<option value="${i}">${e.name}</option>` : '').join(''); return o ? `<optgroup label="${t}">${o}</optgroup>` : ''; };
     $('#exam').innerHTML = grp('模擬考', e => e.mock) + grp('定期考（段考）', e => !e.mock);
     $('#exam').value = 0;
     render(0);
-  }).catch(() => $('#err').textContent = '連線失敗，請稍後再試');
+  }).catch(() => { done(); $('#err').textContent = '連線失敗，請稍後再試'; });
 }
 const sg = x => (x > 0 ? '+' : '') + x.toFixed(1);
 const cl = x => x > 0 ? 'up' : x < 0 ? 'down' : '';
